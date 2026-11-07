@@ -46,10 +46,10 @@ def main():
         assert not page.locator('#mini-preview .department').is_visible()
         page.locator('#department-switch').click()
         page.locator('#simulate-fail').click()
-        assert '未完成' in page.locator('#sync-title').inner_text()
+        assert '失败' in page.locator('#sync-title').inner_text()
         page.locator('#sync').screenshot(path=str(OUT / 'screens/sync-failed.png'))
         page.locator('#sync-button').click()
-        page.wait_for_function("document.querySelector('#sync-title').textContent === '人员库已是最新'")
+        page.wait_for_function("document.querySelector('#sync-title').textContent === '已同步'")
         page.locator('#overlay-switch').click()
         assert page.locator('#home-state').inner_text() == '已暂停'
         page.locator('#overlay-switch').click()
