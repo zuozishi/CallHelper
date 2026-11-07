@@ -55,7 +55,7 @@
 | --- | --- |
 | 页面与大标题 | Scaffold、TopAppBar |
 | 首页 / 人员卡片 | Card、BasicComponent、Text |
-| 底部导航 | NavigationBar |
+| 底部导航 | AndroidLiquidGlass 示例组件 LiquidBottomTabs；替代普通 NavigationBar |
 | 搜索与筛选 | SearchBar、TabRow 或受控按钮组 |
 | 同步操作 | Button、ProgressIndicator、Snackbar |
 | 外观 / 显示设置 | Switch、Slider、基础设置行 |
@@ -63,6 +63,17 @@
 | 来电浮窗 | WindowManager 承载 Compose 内容，内部复用 MiuixTheme / Card / Text |
 
 Miuix 本身是 UI 库，不提供电话识别或系统级浮窗服务。系统授权页由 Android / HyperOS 展示，本应用只做进入前说明与状态回读。
+
+## 液态玻璃导航
+
+用户指定使用 [LiquidBottomTabs](https://github.com/Kyant0/AndroidLiquidGlass/blob/kmp/app/src/commonMain/kotlin/com/kyant/backdrop/catalog/components/LiquidBottomTabs.kt)。原生阶段采用该示例组件及所需辅助代码，保留来源与许可；它位于示例应用中，不假设仅添加 Backdrop 依赖就能直接导入。
+
+- 浮动胶囊轨道，64dp 高、内边距 4dp；四个纯图标入口，选中图标蓝色。
+- 背景取样、模糊、透镜与边缘高光由 Backdrop 绘制；选中胶囊支持弹性移动和按压、拖动反馈。
+- 设计定位为左右 21dp、底部距系统手势安全区约 17dp；实际以设备 Insets 调整。内容预留底部空间，不能被轨道遮挡。
+- 导航标签通过无障碍名称提供，当前入口标记选中；不重复添加可见小字。
+
+本次 HTML 稿提供半透明轨道、模糊、高光、选中态滑动和按压的视觉预览。浏览器 CSS 无法等同原生透镜折射；真实液态玻璃、拖动反馈和性能在原生接入后验收。页面其余组件继续使用 Miuix。
 
 ## 独立浮窗规范
 

@@ -53,12 +53,19 @@ def main():
         page.locator('#overlay-switch').click()
         assert page.locator('#home-state').inner_text() == '已暂停'
         page.locator('#overlay-switch').click()
+        nav = page.locator('#home .nav')
+        assert nav.get_attribute('data-component') == 'LiquidBottomTabs'
+        nav.locator('[data-jump="directory"]').click()
+        assert nav.locator('[aria-current="page"]').get_attribute('aria-label') == '人员库'
+        assert nav.evaluate("el => el.style.getPropertyValue('--tab-index')") == '1'
+        for name in ['home', 'directory', 'appearance']:
+            assert page.locator('#' + name + ' .nav').evaluate('el => {const n=el.getBoundingClientRect(),p=el.closest(".phone").getBoundingClientRect();return n.left>p.left && n.right<p.right && n.bottom<p.bottom-15}')
         page.set_viewport_size({'width': 430, 'height': 950})
         assert page.evaluate('document.documentElement.scrollWidth <= innerWidth')
         assert not errors, errors
         report = {'status': 'passed', 'browser': browser.version, 'screens': IDS,
                   'checks': ['中文姓名搜索', '号码搜索', '空结果', '单位筛选', '关闭及恢复悬浮窗',
-                             '浅色预览', '部门开关', '同步失败', '重试成功', '识别暂停', '430px 预览无横向溢出'],
+                             '浅色预览', '部门开关', '同步失败', '重试成功', '识别暂停', '玻璃导航选中态切换与安全区', '430px 预览无横向溢出'],
                   'page_errors': errors, 'scope': 'HTML 设计原型；不代表 Android 功能或设备验收'}
         (OUT / 'validation.json').write_text(json.dumps(report, ensure_ascii=False, indent=2), encoding='utf-8')
         print(json.dumps(report, ensure_ascii=False))

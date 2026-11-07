@@ -33,7 +33,7 @@ scripts/                  # 设计图导出脚本
 samples/                  # 仅虚构 CSV 样例
 ```
 
-采用 Kotlin + Jetpack Compose，界面计划接入 [Miuix](https://github.com/compose-miuix-ui/miuix)。当前 HTML 是用于评审的可编辑设计源，不代表已经接入原生组件。Android 构建配置和库版本在实施阶段确认。
+采用 Kotlin + Jetpack Compose，界面计划接入 [Miuix](https://github.com/compose-miuix-ui/miuix)，底部导航指定采用 AndroidLiquidGlass 的 [LiquidBottomTabs](https://github.com/Kyant0/AndroidLiquidGlass/blob/kmp/app/src/commonMain/kotlin/com/kyant/backdrop/catalog/components/LiquidBottomTabs.kt) 示例组件。当前 HTML 是用于评审的可编辑设计源，不代表已经接入原生组件。Android 构建配置和库版本在实施阶段确认。
 
 ## 重新导出设计图
 
