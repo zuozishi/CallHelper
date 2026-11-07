@@ -1,45 +1,27 @@
-# V1 架构方案与待定项
+# 当前架构
 
-状态：设计提案，2026-11-07。暂无原生服务、数据库或加密实现。
+2026-11-08。以用户指定 CSV 为实施输入，旧 SQLite 提案不再使用。
 
-## 数据路径
+## 数据与存储
 
-服务端加密人员包 → HTTPS 下载 → 认证解密与完整性验证 → 流式 CSV 解析 → 暂存索引 → 校验通过后原子替换当前人员库。
+本地文件 / Debug 测试资源 → 限制大小的流读取 → 严格 UTF-8 CSV 解析 → 字段校验 → 新快照 → AES-GCM 加密 → AtomicFile 原子保存 → 发布快照。
 
-来电事件 → 号码规范化 → 本地索引精确匹配 → 人员展示模型 → 悬浮窗。同步与来电处理解耦；下载、解密或解析失败均保留最后一份有效数据。首次同步前显示“尚未同步人员库”，来电无匹配时只显示号码和“未找到人员信息”。
+Personnel 与六列直接对应。DirectorySnapshot 按完整规范化号码建立内存索引，重复号码保留所有身份。IO 在线程池执行，搜索在 Default 线程执行；来电不等待网络。
 
-## Android 集成方向
+文件位于 noBackupFilesDir，采用 Android Keystore 生成的 AES-256 密钥、随机 IV、GCM 认证与版本关联数据。密钥不进源码；云备份与迁移排除应用数据。失败不发布新快照，AtomicFile 处理上一版恢复。Debug 内置测试 CSV 为明文开发资源，仅位于本地私有测试包；Release 无该资源。
 
-- 优先评估 Android 10+ `CallScreeningService` 与用户授予的来电识别角色；只做识别时及时放行来电，不引入联网等待。官方要求在 5 秒内响应。
-- 应用悬浮窗使用 `TYPE_APPLICATION_OVERLAY` 并取得相应显示权限。系统可能调整其位置或可见性，不能承诺覆盖所有系统界面。
-- 联系人号码回调范围、隐藏号码、双卡、通话结束事件、锁屏展示及 HyperOS 后台限制需独立验证。联系人权限按实际实现需求再申请；不预设必须取得通话记录或无障碍权限。
-- 引导页提供“来电识别角色”“显示在其他应用上层”“后台运行设置”，逐项读取实际状态。必要能力缺失时展示“待完成设置”，不展示已就绪。
-- 浮窗仅占卡片真实区域，使用不抢焦点窗口；点击关闭只隐藏本次卡片。拖动位置保存为屏幕可用区域的相对坐标，横竖屏与安全区变化后重新约束。
-- 不接管系统接听与挂断。设计图中的电话背景、按钮均为系统拨号器示意，不属于本应用。
-- 解锁前默认不展示姓名、岗位、单位。锁屏详细信息另行显式开启，且需要设备验证；设计稿不代表锁屏覆盖已可行。
-- 来电识别、人员库、安全存储、权限与实际浮窗显示均需真机验收。本阶段未进行设备验收。
+## 来电与窗口
 
-## CSV 与号码规则（草案）
+CallIdentificationService 立即放行来电，然后最多等候 2.5 秒恢复本地库并查号；不拦截、静音、接听、挂断或替换原电话页面。
 
-字段参见 `samples/people.example.csv`。建议 UTF-8、标准 CSV 引号转义，必填 `person_id,phone,name`，岗位与单位缺失时显示“暂无岗位信息 / 暂无单位信息”。明确大小与条数上限、字段长度限制、列版本、空行和重复行处理。
+OverlayController 使用 TYPE_APPLICATION_OVERLAY、非焦点窗口和真实卡片边界，卡片外维持系统电话操作。浮窗以 Android View 绘制，页面以 Compose / Miuix 绘制。单进程只有一个浮窗，组织路径换行、多身份可滚动，拖动保存相对纵向位置。锁屏仅显示无人员详情提示。
 
-号码按国家/地区解析；支持明确国家码的标准形式，国内区号和分机需服务端约定。不要仅凭末 7/8 位认人；号码关联多人时显示“匹配到多位人员”并提供选择，不静默覆盖。隐藏号码直接展示“号码未提供”。
+卡片最多显示 30 秒；可选 READ_PHONE_STATE 授权后，接通约 5 秒收起，通话结束移除。未授权悬浮窗或已暂停时不创建卡片，号码隐藏或查无结果时明确呈现。系统电话应用与 HyperOS 后台策略仍需真机验收；没有常驻前台服务保证进程不被回收。
 
-## 加密人员包待后端确认
+## UI 与 API
 
-目前只有“预计返回加密 CSV”这一输入，不擅自固定算法、密钥或接口。需确认：
+页面使用 Miuix，导航使用 LiquidBottomTabs / LiquidBottomTab 及其手势辅助代码，内容由 layerBackdrop 参与玻璃背景取样。图标保留语义标签与选中状态，来源和许可见 third_party/。
 
-1. 下载端点、认证方式、授权范围与设备注销机制。
-2. 包格式、算法版本、nonce / tag / key id / 签名约定与密钥轮换。
-3. 完整性与来源验证，版本号、生成时间、有效期、防回滚规则。
-4. 全量或增量更新、删除语义、ETag / 条件请求、调度与重试。
-5. CSV 编码、字段表、号码规则、多岗多单位和号码冲突语义。
+EncryptedCsvTransport.download 与 CsvPayloadDecryptor.decrypt 是加密 API 的待接入边界，成功解密的 CSV 复用相同校验和替换。没有自创线上加密格式、没有实际网络请求、增量合并或自动同步。后端需确认 HTTPS 端点、认证、算法、IV / tag / 签名、密钥分发与轮换、数据版本、防重放与错误语义。
 
-密钥不要硬编码进 APK；结合 Android Keystore 与后端密钥分发方案落地。人员明文不写日志、不进入 Git；本地库加密、备份排除、登出清除与保留期限需在实施时明确。当前样例全部虚构，不包含真实人员信息。
-
-## 官方参考
-
-- [Miuix 仓库](https://github.com/compose-miuix-ui/miuix)
-- [Miuix 组件目录](https://compose-miuix-ui.github.io/miuix/components/)
-- [CallScreeningService](https://developer.android.com/reference/android/telecom/CallScreeningService)
-- [TYPE_APPLICATION_OVERLAY](https://developer.android.com/reference/android/view/WindowManager.LayoutParams#TYPE_APPLICATION_OVERLAY)
+具体实现验证与未验收范围见 docs/DEVELOPMENT_20261108.md。

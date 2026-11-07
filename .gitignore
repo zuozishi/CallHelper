@@ -10,4 +10,9 @@ local.properties
 __pycache__/
 tmp/
 data/private/
+/data/
+app/src/debug/assets/private/
+app/src/androidTest/assets/private/
+.kotlin/
+artifacts/private/
 *.csv.enc

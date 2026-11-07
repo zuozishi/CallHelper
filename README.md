@@ -1,47 +1,38 @@
 # 来电知人 · CallHelper
 
-Android 来电人员识别助手：通过电话号码匹配姓名、岗位、单位，以轻量悬浮卡片展示。
+Android 来电人员识别助手，保留原电话页面，在其上方叠加姓名、岗位、单位和组织路径。Android 10+，当前开发版本 `0.1.0`。
 
-当前交付为 **V1 界面设计与目录骨架**，尚未实现 Android 功能、后端接口或加解密；没有可安装 APK。
+## 当前功能
 
-## 查看设计
+- 本地 CSV 导入与完整校验，失败保留旧人员库。
+- Android Keystore + AES-256-GCM 加密保存，AtomicFile 原子替换，排除备份。
+- 离线精确查号；按姓名、岗位、号码、单位与组织路径搜索。
+- Miuix 0.9.4 界面和真正的 AndroidLiquidGlass LiquidBottomTabs 导航。
+- 来电识别与悬浮窗权限引导；可选通话结束监听和通讯录来电识别权限。
+- 独立来电卡片、拖动、关闭、浅深色、组织路径与字号设置，锁屏隐藏人员详情。
+- 人员头像：可选 AvatarUrl 字段，缺失或加载失败使用姓氏占位。当前测试 CSV 没有头像地址。
+- 预留加密 CSV 下载及解密接口；后端协议尚未给出，无真实 API 请求或定时同步。
 
-- [六屏设计总览](docs/design/v1/overview.png)
-- [可交互设计稿](docs/design/v1/index.html)：浏览器直接打开；支持人员搜索、同步状态演示、主题和悬浮窗开关。
-- [设计与交互规范](docs/design/v1/DESIGN.md)
-- [架构与接口待定项](docs/architecture/ARCHITECTURE.md)
-- [单屏 PNG](docs/design/v1/screens/)
+## 开发与测试
 
-所有人员、号码、统计和同步结果均为演示数据。
-
-## 目录规划
-
-```text
-app/src/main/
-  java/com/zuozishi/callhelper/
-    core/                 # 号码规范化、主题与通用能力
-    data/                 # 同步、CSV 解码、人员本地索引
-    domain/               # 人员模型、查号与同步用例
-    feature/              # home / directory / sync / settings
-    service/              # 来电识别、悬浮窗生命周期
-  res/                    # 后续 Android 资源
-app/src/test/             # 后续单元测试
-app/src/androidTest/      # 后续设备测试
-docs/design/v1/           # 设计源文件、图和规范
-docs/architecture/        # 架构方案
-scripts/                  # 设计图导出脚本
-samples/                  # 仅虚构 CSV 样例
-```
-
-采用 Kotlin + Jetpack Compose，界面计划接入 [Miuix](https://github.com/compose-miuix-ui/miuix)，底部导航指定采用 AndroidLiquidGlass 的 [LiquidBottomTabs](https://github.com/Kyant0/AndroidLiquidGlass/blob/kmp/app/src/commonMain/kotlin/com/kyant/backdrop/catalog/components/LiquidBottomTabs.kt) 示例组件。当前 HTML 是用于评审的可编辑设计源，不代表已经接入原生组件。Android 构建配置和库版本在实施阶段确认。
-
-## 重新导出设计图
-
-安装 Python Playwright，并准备本地 Chromium 或 Microsoft Edge：
+Kotlin 2.4.21、AGP 9.3.3、Gradle 9.5.0、JDK 21、Android SDK 37，target 36。`local.properties` 指定本机 SDK，`JAVA_HOME` 指向兼容的 JDK / Android Studio JBR。
 
 ```powershell
-python -m pip install playwright
-python scripts/render_design.py
+python scripts/prepare_test_data.py --csv data/export_261108004228.csv --copy-fixtures
+./gradlew.bat :app:assembleDebug :app:testDebugUnitTest :app:lintDebug
+./gradlew.bat :app:connectedDebugAndroidTest
 ```
 
-导出脚本支持 `--browser` 指定浏览器可执行文件；默认使用 Windows Edge。设计稿无外部字体、脚本或图片依赖，可离线打开。
+Debug 首次启动自动导入本机测试 CSV。真实数据置于被忽略的 Debug / androidTest `assets/private/`，不进入 Git；本机 Debug APK 包含该数据。Release 无内置人员库，使用文件选择器导入。设备测试中的 4,300 人与 417 个单位对应此次指定文件。
+
+本次开发不使用旧 SQLite 及其密码。正式 API 下载并认证解密后接入同一导入管线。
+
+## 资料
+
+- [CSV 分析与接入规范](docs/CSV_DATA_20261108.md)
+- [当前架构](docs/architecture/ARCHITECTURE.md)
+- [开发验证](docs/DEVELOPMENT_20261108.md)
+- [界面设计](docs/design/v1/DESIGN.md) / [设计原型](docs/design/v1/index.html)
+- [第三方代码](third_party/NOTICE.md)
+
+早期设计图采用虚构人员和数量；原生 APP 使用当前导入数据，按设备空间适配。设计图导出：`python scripts/render_design.py`，需 Python Playwright 与本机 Edge。
