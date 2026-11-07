@@ -39,7 +39,7 @@ class CallHelperApplication : Application() {
         ready = scope.async {
             try {
                 if (store.exists()) directory.load()
-                else BundledData.open(this@CallHelperApplication)?.let { directory.importCsv(it); markUpdated() }
+                if (BundledData.refresh(this@CallHelperApplication, directory)) markUpdated()
             } catch (_: Exception) { startupError.value = "人员库加载失败，请重新导入" }
         }
         observeCallState()

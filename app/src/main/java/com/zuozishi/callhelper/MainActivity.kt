@@ -66,6 +66,7 @@ class MainActivity : ComponentActivity() {
                 app.ready.await()
                 val input = withContext(Dispatchers.IO) { contentResolver.openInputStream(uri) } ?: error("无法读取文件")
                 val count = app.directory.importCsv(input)
+                app.prefs.edit().putString("directorySource", "manual").apply()
                 app.markUpdated(); app.startupError.value = null; message = "已导入 $count 人"
             } catch (e: Exception) { message = if (e is IllegalArgumentException) e.message else "导入失败，原人员库已保留" }
             finally { busy = false; revision++ }

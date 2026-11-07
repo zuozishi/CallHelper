@@ -7,7 +7,7 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parents[1]
 
 def main():
-    for name in ['data/export_261108004228.csv', 'app/src/debug/assets/private/members.csv',
+    for name in ['data/export_261108004228.csv', 'data/export_261108011546.csv', 'app/src/debug/assets/private/members.csv',
                  'app/src/androidTest/assets/private/members.csv', '.env']:
         result = subprocess.run(['git', 'check-ignore', '-q', name], cwd=ROOT)
         if result.returncode:

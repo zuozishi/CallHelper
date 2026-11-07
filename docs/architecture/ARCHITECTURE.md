@@ -6,6 +6,8 @@
 
 本地文件 / Debug 测试资源 → 限制大小的流读取 → 严格 UTF-8 CSV 解析 → 字段校验 → 新快照 → AES-GCM 加密 → AtomicFile 原子保存 → 发布快照。
 
+当前 Debug 测试资源为带 AvatarUrl 的 CSV。内置源按摘要更新，手动导入源不覆盖；头像通过 Coil 异步加载，地址缺失或加载失败显示姓氏占位，锁屏隐藏人员头像。头像数据验证见 `docs/AVATAR_DATA_20261108.md`。
+
 Personnel 与六列直接对应。DirectorySnapshot 按完整规范化号码建立内存索引，重复号码保留所有身份。IO 在线程池执行，搜索在 Default 线程执行；来电不等待网络。
 
 文件位于 noBackupFilesDir，采用 Android Keystore 生成的 AES-256 密钥、随机 IV、GCM 认证与版本关联数据。密钥不进源码；云备份与迁移排除应用数据。失败不发布新快照，AtomicFile 处理上一版恢复。Debug 内置测试 CSV 为明文开发资源，仅位于本地私有测试包；Release 无该资源。

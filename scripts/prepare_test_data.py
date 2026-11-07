@@ -15,15 +15,16 @@ def main():
     args = parser.parse_args()
     with args.csv.open(encoding='utf-8-sig', newline='') as stream:
         reader = csv.DictReader(stream)
-        if reader.fieldnames != FIELDS:
-            raise ValueError('CSV header must be ' + ','.join(FIELDS))
+        header = reader.fieldnames or []
+        if len(header) != len(set(header)) or not set(FIELDS).issubset(header):
+            raise ValueError('CSV must contain unique required fields: ' + ','.join(FIELDS))
         rows = list(reader)
     if not rows or any(None in row or any(row.get(k) is None for k in FIELDS) for row in rows):
         raise ValueError('CSV contains empty or malformed rows')
     report = {'rows': len(rows), 'bytes': args.csv.stat().st_size,
               'fields': {k: {'empty': sum(not row[k].strip() for row in rows),
                              'distinct': len({row[k] for row in rows}),
-                             'max_length': max(len(row[k]) for row in rows)} for k in FIELDS}}
+                             'max_length': max(len(row[k]) for row in rows)} for k in header}}
     print(json.dumps(report, ensure_ascii=False, indent=2))
     if args.copy_fixtures:
         for variant in ['debug', 'androidTest']:
