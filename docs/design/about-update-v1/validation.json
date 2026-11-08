@@ -1,0 +1,11 @@
+{
+  "javascript_errors": [],
+  "horizontal_overflow": [],
+  "checked": [
+    "startup network failure is silent",
+    "manual failure feedback",
+    "latest feedback",
+    "new release dismissal"
+  ],
+  "scope": "offline review prototype; no real download or installation"
+}

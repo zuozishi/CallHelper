@@ -18,6 +18,7 @@ import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 
 class CallHelperApplication : Application() {
+    internal val updates by lazy { com.zuozishi.callhelper.update.UpdateController(this, scope) }
     val scope = CoroutineScope(SupervisorJob() + Dispatchers.Main.immediate)
     lateinit var directory: DirectoryRepository; private set
     lateinit var overlay: OverlayController; private set

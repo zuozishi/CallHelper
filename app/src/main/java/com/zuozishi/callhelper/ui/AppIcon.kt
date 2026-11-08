@@ -13,6 +13,7 @@ import com.zuozishi.callhelper.R
 
 /** Shared 24dp, round-cap vector symbols. Action owners supply accessible names. */
 internal enum class AppIconSymbol(@DrawableRes val resource: Int) {
+    Info(R.drawable.ic_info),
     Scan(R.drawable.ic_scan),
     QrCode(R.drawable.ic_qr),
     Save(R.drawable.ic_save),

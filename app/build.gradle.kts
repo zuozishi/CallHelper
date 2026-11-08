@@ -70,6 +70,8 @@ android {
 }
 kotlin { compilerOptions { jvmTarget.set(org.jetbrains.kotlin.gradle.dsl.JvmTarget.JVM_21) } }
 dependencies {
+    implementation("com.android.tools.build:apksig:9.3.3")
+    testImplementation("org.json:json:20240303")
     implementation("com.journeyapps:zxing-android-embedded:4.3.0")
     compileOnly(files("libs/xposed-api82.jar"))
     implementation("androidx.core:core-ktx:1.17.0")

@@ -37,6 +37,8 @@ import androidx.compose.ui.unit.sp
 import androidx.compose.ui.window.Dialog
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.lifecycleScope
+import androidx.lifecycle.Lifecycle
+import androidx.core.content.FileProvider
 import com.kyant.backdrop.Backdrop
 import com.kyant.backdrop.backdrops.layerBackdrop
 import com.kyant.backdrop.backdrops.rememberLayerBackdrop
@@ -45,6 +47,8 @@ import com.kyant.backdrop.catalog.components.LiquidBottomTabs
 import com.zuozishi.callhelper.ui.AppIcon
 import com.zuozishi.callhelper.ui.AppIconSymbol
 import com.zuozishi.callhelper.ui.SyncConfigurationPanel
+import com.zuozishi.callhelper.ui.aboutItems
+import com.zuozishi.callhelper.ui.UpdateDialog
 import com.zuozishi.callhelper.domain.DirectorySnapshot
 import com.zuozishi.callhelper.domain.Personnel
 import com.zuozishi.callhelper.domain.isDirectoryUpdateOverdue
@@ -67,8 +71,12 @@ class MainActivity : ComponentActivity() {
     private var updateReminderVisible by mutableStateOf(false)
     private val external = registerForActivityResult(ActivityResultContracts.StartActivityForResult()) { revision++ }
     private val permissions = registerForActivityResult(ActivityResultContracts.RequestMultiplePermissions()) { app.observeCallState(); revision++ }
+    private val installPermission = registerForActivityResult(ActivityResultContracts.StartActivityForResult()) {
+        app.updates.permissionReturned(packageManager.canRequestPackageInstalls())
+    }
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState); enableEdgeToEdge()
+        app.updates.startupCheck()
         setContent {
             val snapshot by app.directory.snapshot.collectAsStateWithLifecycle()
             val error by app.startupError.collectAsStateWithLifecycle()
@@ -107,7 +115,29 @@ class MainActivity : ComponentActivity() {
         catch (_: SecurityException) { Toast.makeText(this, "系统限制了此授权页面，请在系统中手动授权", Toast.LENGTH_LONG).show() }
     }
     private fun openOverlayPermission() { launchExternal(Intent(Settings.ACTION_MANAGE_OVERLAY_PERMISSION, Uri.parse("package:$packageName"))) }
-    override fun onResume() { super.onResume(); revision++; app.observeCallState(); app.rear.refreshStatus() }
+    private fun openUpdateLink(url: String) {
+        try { startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(url))) }
+        catch (_: ActivityNotFoundException) { Toast.makeText(this, "未找到浏览器", Toast.LENGTH_SHORT).show() }
+    }
+    private fun authorizeUpdateInstall() {
+        app.updates.openPermission()
+        try { installPermission.launch(Intent(Settings.ACTION_MANAGE_UNKNOWN_APP_SOURCES, Uri.parse("package:$packageName"))) }
+        catch (_: Exception) { app.updates.permissionReturned(false) }
+    }
+    private fun installUpdate() {
+        app.updates.consumeInstallRequest()
+        if (!packageManager.canRequestPackageInstalls()) { app.updates.needPermission(); return }
+        try {
+            val uri = FileProvider.getUriForFile(this, "$packageName.updates", app.updates.apk)
+            startActivity(Intent(Intent.ACTION_VIEW).setDataAndType(uri, "application/vnd.android.package-archive")
+                .addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION))
+            app.updates.dismiss()
+        } catch (_: Exception) { app.updates.installFailed() }
+    }
+    override fun onResume() {
+        super.onResume(); revision++; app.observeCallState(); app.rear.refreshStatus()
+        if (app.updates.awaitingPermission) app.updates.permissionReturned(packageManager.canRequestPackageInstalls())
+    }
     override fun onStart() {
         super.onStart()
         lifecycleScope.launch {
@@ -123,6 +153,9 @@ class MainActivity : ComponentActivity() {
         requestRole: () -> Unit, requestOverlay: () -> Unit, requestPhone: () -> Unit, requestContacts: () -> Unit,
     ) {
         var tab by rememberSaveable { mutableIntStateOf(0) }
+        var showHistory by rememberSaveable { mutableStateOf(false) }
+        val updateState by app.updates.state.collectAsStateWithLifecycle()
+        val lifecycleState by lifecycle.currentStateFlow.collectAsStateWithLifecycle()
         var query by rememberSaveable { mutableStateOf("") }
         var enabled by remember { mutableStateOf(app.prefs.getBoolean("enabled", true)) }
         var hideUnmatched by remember { mutableStateOf(app.prefs.getBoolean("hideUnmatched", true)) }
@@ -134,6 +167,10 @@ class MainActivity : ComponentActivity() {
         var rearShowLocked by remember { mutableStateOf(app.prefs.getBoolean("rearShowLocked", false)) }
         val rearStatus by app.rear.status.collectAsStateWithLifecycle()
         var detail by remember { mutableStateOf<Personnel?>(null) }
+        BackHandler(enabled = tab == 4 && showHistory) { showHistory = false }
+        LaunchedEffect(updateState.installRequested, lifecycleState, updateReminderVisible, detail) {
+            if (updateState.installRequested && lifecycleState == Lifecycle.State.RESUMED && !updateReminderVisible && detail == null) installUpdate()
+        }
         var results by remember { mutableStateOf(emptyList<Personnel>()) }
         var settledQuery by remember { mutableStateOf("") }
         LaunchedEffect(query, directory) {
@@ -148,7 +185,7 @@ class MainActivity : ComponentActivity() {
         val organization = directory.organizations.nodes[organizationKey] ?: directory.organizations.root
         var resultLimit by remember(query, directory) { mutableIntStateOf(100) }
         val scrollStates = remember(directory) { mutableMapOf<String, LazyListState>() }
-        val route = if (tab == 1) "directory:${organization.key}:${query.isNotBlank()}" else "tab:$tab"
+        val route = if (tab == 1) "directory:${organization.key}:${query.isNotBlank()}" else "tab:$tab:$showHistory"
         val listState = scrollStates.getOrPut(route) { LazyListState() }
         BackHandler(enabled = tab == 1 && (query.isNotBlank() || organization.parent != null)) {
             if (query.isNotBlank()) query = "" else organizationKey = organization.parent.orEmpty()
@@ -185,7 +222,8 @@ class MainActivity : ComponentActivity() {
                 verticalArrangement = Arrangement.spacedBy(if (tab == 1 && query.isBlank()) 0.dp else 16.dp)) {
                 item {
                     Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
-                        Text(listOf(getString(R.string.app_name), "人员库", "数据同步", "设置")[tab], fontSize = 32.sp, fontWeight = FontWeight.SemiBold, modifier = Modifier.weight(1f))
+                        if (tab == 4 && showHistory) Action("返回关于", AppIconSymbol.Back) { showHistory = false }
+                        Text(if (tab == 4 && showHistory) "更新记录" else listOf(getString(R.string.app_name), "人员库", "数据同步", "设置", "关于")[tab], fontSize = 32.sp, fontWeight = FontWeight.SemiBold, modifier = Modifier.weight(1f))
                         if (tab == 0) Action("设置", AppIconSymbol.Settings) { tab = 3 }
                         if (tab == 1 && organization.parent != null) Action("返回上一级", AppIconSymbol.Back) { query = ""; organizationKey = organization.parent.orEmpty() }
                     }
@@ -309,9 +347,14 @@ class MainActivity : ComponentActivity() {
                         }
                         item { PermissionCard(roleGranted, overlayGranted, phoneGranted, contactsGranted, requestRole, requestOverlay, requestPhone, requestContacts) }
                     }
+                    4 -> aboutItems(app.updates, updateState, showHistory,
+                        onHistory = { showHistory = true; app.updates.loadHistory() }, onLink = ::openUpdateLink)
                 }
             }
             Navigation(tab, backdrop, dark, Modifier.align(Alignment.BottomCenter)) { tab = it }
+        }
+        if (!updateReminderVisible && detail == null && lifecycleState == Lifecycle.State.RESUMED) {
+            UpdateDialog(updateState, app.updates, ::authorizeUpdateInstall, ::openUpdateLink)
         }
         detail?.let { person ->
             Dialog(onDismissRequest = { detail = null }) {
@@ -398,7 +441,7 @@ class MainActivity : ComponentActivity() {
         // Platform blur is available from Android 12. Keep older systems on a solid surface.
         if (Build.VERSION.SDK_INT < 31) {
             Row(Modifier.fillMaxWidth().height(64.dp).background(if (dark) Color(0xFF252A34) else Color.White, RoundedCornerShape(32.dp)).selectableGroup().testTag("liquid-navigation")) {
-                listOf(AppIconSymbol.Home to "首页", AppIconSymbol.People to "人员库", AppIconSymbol.Sync to "同步", AppIconSymbol.Settings to "设置").forEachIndexed { i, (icon, label) ->
+                listOf(AppIconSymbol.Home to "首页", AppIconSymbol.People to "人员库", AppIconSymbol.Sync to "同步", AppIconSymbol.Settings to "设置", AppIconSymbol.Info to "关于").forEachIndexed { i, (icon, label) ->
                     Box(Modifier.weight(1f).fillMaxHeight().padding(4.dp).clip(RoundedCornerShape(28.dp))
                         .background(if (selected == i) Blue.copy(alpha = .14f) else Color.Transparent)
                         .semantics { contentDescription = label; this.selected = selected == i; role = Role.Tab }
@@ -410,11 +453,11 @@ class MainActivity : ComponentActivity() {
             return@Box
         }
         key(dark) {
-            LiquidBottomTabs(selectedTabIndex = getIndex, onTabSelected = selectIndex, backdrop = backdrop, tabsCount = 4,
+            LiquidBottomTabs(selectedTabIndex = getIndex, onTabSelected = selectIndex, backdrop = backdrop, tabsCount = 5,
                 isLightTheme = !dark, modifier = Modifier.fillMaxWidth().selectableGroup().testTag("liquid-navigation")) {
-                listOf(AppIconSymbol.Home to "首页", AppIconSymbol.People to "人员库", AppIconSymbol.Sync to "同步", AppIconSymbol.Settings to "设置").forEachIndexed { i, (icon, label) ->
+                listOf(AppIconSymbol.Home to "首页", AppIconSymbol.People to "人员库", AppIconSymbol.Sync to "同步", AppIconSymbol.Settings to "设置", AppIconSymbol.Info to "关于").forEachIndexed { i, (icon, label) ->
                     LiquidBottomTab(onClick = { onSelect(i) }, modifier = Modifier.semantics { contentDescription = label; this.selected = selected == i }.testTag("nav-$i")) {
-                        AppIcon(icon, if (dark) Color.White else Color.Black, Modifier.size(26.dp))
+                        AppIcon(icon, if (selected == i) Blue else if (dark) Color.White else Color.Black, Modifier.size(26.dp))
                     }
                 }
             }

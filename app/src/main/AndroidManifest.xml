@@ -1,6 +1,7 @@
 <?xml version="1.0" encoding="utf-8"?>
 <manifest xmlns:android="http://schemas.android.com/apk/res/android" xmlns:tools="http://schemas.android.com/tools">
     <uses-permission android:name="android.permission.INTERNET" />
+    <uses-permission android:name="android.permission.REQUEST_INSTALL_PACKAGES" />
     <uses-permission android:name="android.permission.CAMERA" />
     <uses-feature android:name="android.hardware.camera" android:required="false" />
     <uses-permission android:name="android.permission.SYSTEM_ALERT_WINDOW" />
@@ -20,6 +21,10 @@
         <meta-data android:name="xposedscope" android:resource="@array/xposed_scope" />
         <provider android:name=".rear.NativeRearProvider" android:authorities="${applicationId}.rear"
             android:exported="true" />
+        <provider android:name="androidx.core.content.FileProvider"
+            android:authorities="${applicationId}.updates" android:exported="false" android:grantUriPermissions="true">
+            <meta-data android:name="android.support.FILE_PROVIDER_PATHS" android:resource="@xml/update_paths" />
+        </provider>
         <receiver android:name=".rear.RearCardActions" android:exported="false" />
         <activity android:name="com.journeyapps.barcodescanner.CaptureActivity"
             android:screenOrientation="portrait" tools:replace="android:screenOrientation" />
