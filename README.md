@@ -1,40 +1,96 @@
-# 来电知人 · CallHelper
+# 来电名片 · CallHelper
 
-Android 来电人员识别助手，保留原电话页面，在其上方叠加头像、姓名、岗位、单位和组织路径。Android 10+，当前开发版本 `0.1.1`。
+Android 来电人员识别助手。在系统来电界面上叠加人员名片，显示头像、姓名、岗位、单位与组织路径，并提供离线通讯录查询。
 
-## 当前功能
+支持 Android 10 及以上，当前开发版本 **0.1.9**。普通来电识别无需 Root；小米背屏扩展需要 LSPosed / Vector 和受支持的背屏应用。
 
-- 本地 CSV 导入与完整校验，失败保留旧人员库。
-- Android Keystore + AES-256-GCM 加密保存，AtomicFile 原子替换，排除备份。
-- 离线精确查号；按姓名、岗位、号码、单位与组织路径搜索。
-- Miuix 0.9.4 界面和真正的 AndroidLiquidGlass LiquidBottomTabs 导航。
-- 来电识别与悬浮窗权限引导；可选通话结束监听和通讯录来电识别权限。
-- 独立来电卡片、拖动、关闭、浅深色、组织路径与字号设置，锁屏隐藏人员详情。
-- 人员头像：可选 AvatarUrl 字段，缺失或加载失败使用姓氏占位。当前测试 CSV 已包含头像地址。
-- 预留加密 CSV 下载及解密接口；后端协议尚未给出，无真实 API 请求或定时同步。
+## 功能
 
-## 开发与测试
+- **离线识别**：按完整号码精确匹配，共享号码保留多个人员身份。
+- **组织通讯录**：逐级浏览组织，按姓名、号码、岗位、单位和组织路径搜索，人员详情支持拨号。
+- **加密同步**：HTTPS 下载 AES-256-GCM 加密的全量人员库；下载、认证或校验失败保留旧库。
+- **本机保护**：Android Keystore 加密保存配置与人员库，排除系统备份，锁屏默认隐藏详情。
+- **同步配置**：手动填写、扫码或导入二维码图片，支持配置二维码导出；安装包不预置服务地址或密钥。
+- **来电卡片**：支持拖动、关闭、暂停、字号、组织路径及浅深色设置，不替换系统电话界面。
+- **小米背屏**：可选原生联系人卡片，锁屏详情开关独立控制。
 
-Kotlin 2.4.21、AGP 9.3.3、Gradle 9.5.0、JDK 21、Android SDK 37，target 36。`local.properties` 指定本机 SDK，`JAVA_HOME` 指向兼容的 JDK / Android Studio JBR。
+## 开始使用
+
+1. 安装自行构建并签名的 APK，打开应用。
+2. 按应用引导授予来电识别角色与悬浮窗权限；通话状态和通讯录权限按需授权。
+3. 进入「数据同步」，点击齿轮图标，录入管理员提供的 HTTPS URL 和 Base64 解密密钥，或导入配置二维码。
+4. 核对后点击勾选图标保存，再点击同步图标下载人员库。**保存配置本身不发起网络请求**；后续启动会后台刷新。
+
+首次下载需要联网，之后可使用已保存的离线人员库。打开应用时，距上次成功更新超过 7 天会提醒更新；目前没有定时后台同步或增量同步。
+
+配置二维码包含明文密钥，仅向可信人员分发。具体入口与格式见[同步配置](docs/SYNC_CONFIGURATION_20261108.md)。
+
+### 小米背屏（可选）
+
+在 LSPosed / Vector 启用「来电名片」模块，作用域仅选择背屏应用 `com.xiaomi.subscreencenter`，重启该应用，再在来电名片设置中开启「背屏联系人卡片」。当前仅适配背屏应用版本 `RELEASE-1.0.2609141923`，不代表其他 HyperOS 版本兼容。详见[背屏配置与验证](docs/LSPOSED_REAR_CARD_20261108.md)。
+
+## 搭建后端
+
+服务需要返回与客户端兼容的加密 CSV；本仓库包含 Android 客户端及联调工具，未包含现有业务后端源码。
+
+[后端服务搭建指南](docs/BACKEND_SETUP.md)提供独立参考服务、字段与封包规范、Linux 部署、HTTPS 配置、密钥轮换和联调步骤。已有后端可直接按协议实现，无需采用示例技术栈。
+
+## 构建与检查
+
+构建配置以 Gradle 文件为准：JDK 21、Android SDK 37、target API 36、min API 29、Kotlin 2.4.21、AGP 9.3.3、Gradle 9.5.0。使用仓库附带的 Gradle Wrapper，无需另装 Gradle。
+
+1. 克隆仓库并用 Android Studio 打开，安装对应 SDK。
+2. 将 `JAVA_HOME` 指向 JDK 21 或兼容的 Android Studio JBR；由 Android Studio 生成本机 `local.properties`，或自行设置 `sdk.dir`。
+3. 在仓库根目录执行：
 
 ```powershell
-python scripts/prepare_test_data.py --csv data/export_261108011546.csv --copy-fixtures
 ./gradlew.bat :app:assembleDebug :app:testDebugUnitTest :app:lintDebug
-./gradlew.bat :app:connectedDebugAndroidTest
+./gradlew.bat :app:assembleRelease
+python scripts/verify_private_assets.py
+python -m unittest discover -s scripts -p test_private_assets.py
 ```
 
-Debug 首次启动自动导入本机测试 CSV。真实数据置于被忽略的 Debug / androidTest `assets/private/`，不进入 Git；本机 Debug APK 包含该数据。Release 无内置人员库，使用文件选择器导入。设备测试中的 4,300 人与 417 个单位对应此次指定文件。
+macOS / Linux 使用 `./gradlew` 替换 `./gradlew.bat`。Python 用于检查脚本，不是 Android 编译依赖。
 
-Debug 包更新内置 CSV 时会按文件摘要刷新原内置人员库；用户手动导入的其他人员库保持不变。0.1.0 升级时核对原核心记录，匹配后补入头像。
+输出目录为 `app/build/outputs/apk/debug/` 和 `app/build/outputs/apk/release/`。当前未配置 Release 签名，产物为 unsigned APK；分发前需使用自行保管的签名密钥签名，后续升级保持相同签名。Debug 包仅供开发测试。
 
-本次开发不使用旧 SQLite 及其密码。正式 API 下载并认证解密后接入同一导入管线。
+构建不需要同步 URL、导出密钥或真实人员文件。不要将这些文件放入项目目录：构建会拒绝私有输入，并检查 APK 资源白名单。`app/libs/xposed-api82.jar` 是背屏扩展的编译依赖，需随源码一起保留，不会打包进 APK。
 
-## 资料
+## 项目结构
 
-- [CSV 分析与接入规范](docs/CSV_DATA_20261108.md)
-- [当前架构](docs/architecture/ARCHITECTURE.md)
-- [头像数据切换验证](docs/AVATAR_DATA_20261108.md) / [0.1.0 开发验证](docs/DEVELOPMENT_20261108.md)
-- [界面设计](docs/design/v1/DESIGN.md) / [设计原型](docs/design/v1/index.html)
-- [第三方代码](third_party/NOTICE.md)
+```text
+app/                 Android 应用、JVM 单测与设备测试
+docs/                配置指南、架构、设计与历史验证记录
+scripts/             协议联调、打包隐私检查与设计图工具
+third_party/         第三方代码来源与许可
+gradle/              Gradle Wrapper
+```
 
-早期设计图采用虚构人员和数量；原生 APP 使用当前导入数据，按设备空间适配。设计图导出：`python scripts/render_design.py`，需 Python Playwright 与本机 Edge。
+## 兼容性与数据边界
+
+Android 10/11 使用纯色图标导航，Android 12 及以上使用玻璃导航。来电角色、锁屏悬浮窗和后台存活受设备系统策略影响，构建与自动化检查不能替代目标设备的真实通话验收。
+
+导出密钥与本机存储密钥相互独立。当前客户端仅支持不附带登录凭据的 HTTPS GET；共享解密密钥不构成服务端身份认证。协议不含数据版本或时间戳，不提供防重放保证。头像通过独立 HTTPS 请求加载，地址缺失或加载失败时显示姓氏占位。
+
+## 推送 GitHub 前
+
+- 执行上述构建、Lint、单测及隐私检查；APK 检查不等于整个仓库或 Git 历史的秘密扫描。
+- 审阅 `git status --short` 与 `git diff --cached`，确认新源码、`app/libs/` 与文档已纳入，删除项符合预期。
+- 排除真实人员数据、配置二维码、服务密钥、签名文件、私有截图和日志；`.gitignore` 不能移除已经跟踪或进入历史的文件。
+- 确认第三方代码分发许可与项目授权方式。本仓库尚未提供项目级 `LICENSE`，第三方许可见 [NOTICE](third_party/NOTICE.md)。
+
+Git 提交消息使用简体中文和约定式提交格式，例如 `docs: 完善后端部署指南与项目说明`。
+
+## 文档
+
+| 文档 | 内容 |
+| --- | --- |
+| [后端服务搭建](docs/BACKEND_SETUP.md) | 接口协议、参考服务、部署与排障 |
+| [同步配置](docs/SYNC_CONFIGURATION_20261108.md) | 手动配置、二维码与密钥保存 |
+| [当前架构](docs/architecture/ARCHITECTURE.md) | 同步、存储、来电与背屏实现 |
+| [组织层级](docs/DIRECTORY_HIERARCHY_20261108.md) | 组织导航与索引 |
+| [打包隐私检查](docs/PRIVACY_CLEANUP_20261108.md) | 检查范围、命令与历史结果 |
+| [背屏配置](docs/LSPOSED_REAR_CARD_20261108.md) | 模块作用域与适配限制 |
+| [第三方说明](third_party/NOTICE.md) | 复用代码来源与许可 |
+
+[早期开发记录](docs/DEVELOPMENT_20261108.md)、[CSV 数据分析](docs/CSV_DATA_20261108.md)、[0.1.4 接口联调](docs/EMPLOYEE_EXPORT_20261108.md)与[头像验证](docs/AVATAR_DATA_20261108.md)包含历史状态；当前配置和协议以上述指南及源码为准。[界面原型](docs/design/v1/index.html)使用虚构人员，仅用于设计演示。

@@ -15,6 +15,7 @@ class EncryptedDirectoryStore(context: Context, name: String = "directory") {
     private val file = AtomicFile(File(context.noBackupFilesDir, "$name.bin"))
     private val alias = "callhelper.$name.v1"
     fun exists() = file.baseFile.exists() || File(file.baseFile.path + ".bak").exists()
+    fun delete() { file.delete() }
     private fun key(): SecretKey {
         val store = KeyStore.getInstance("AndroidKeyStore").apply { load(null) }
         (store.getKey(alias, null) as? SecretKey)?.let { return it }

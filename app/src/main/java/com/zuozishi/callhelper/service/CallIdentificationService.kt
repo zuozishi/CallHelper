@@ -17,7 +17,11 @@ class CallIdentificationService : CallScreeningService() {
         val number = details.handle?.schemeSpecificPart.orEmpty()
         app.scope.launch {
             withTimeoutOrNull(2500) { app.ready.await() } ?: return@launch
-            if (epoch == app.callEpoch) app.overlay.show(number, app.directory.snapshot.value.lookup(number), isCall = true)
+            if (epoch == app.callEpoch) {
+                val people = app.directory.snapshot.value.lookup(number)
+                app.overlay.show(number, people, isCall = true)
+                app.rear.show(number, people, isCall = true)
+            }
         }
     }
 }

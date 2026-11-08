@@ -8,7 +8,7 @@ import java.nio.charset.CodingErrorAction
 object PersonnelCsv {
     const val MAX_BYTES = 20 * 1024 * 1024
     private val columns = listOf("Id", "Phone", "Name", "Post", "TopOrgName", "FullOrgName")
-    fun parse(bytes: ByteArray): List<Personnel> {
+    fun parse(bytes: ByteArray, allowDuplicateIds: Boolean = false): List<Personnel> {
         require(bytes.size <= MAX_BYTES) { "人员文件超过 20 MB" }
         val text = try {
             Charsets.UTF_8.newDecoder().onMalformedInput(CodingErrorAction.REPORT)
@@ -20,14 +20,17 @@ object PersonnelCsv {
         require(header.distinct().size == header.size && columns.all { it in header }) { "CSV 字段不完整或重复" }
         val indices = columns.map { header.indexOf(it) }
         val ids = HashSet<String>()
+        val occurrences = HashMap<String, Int>()
         val people = rows.drop(1).filterNot { it.all(String::isBlank) }.mapIndexed { index, row ->
             require(row.size == header.size) { "第 ${index + 2} 行列数不正确" }
             val fields = indices.map { row[it].trim() }
             require(fields.all { it.length <= 2000 }) { "第 ${index + 2} 行字段过长" }
             require(fields[0].isNotBlank() && fields[2].isNotBlank() && com.zuozishi.callhelper.domain.PhoneKey.normalize(fields[1]).isNotEmpty()) { "第 ${index + 2} 行缺少有效人员信息" }
-            require(ids.add(fields[0])) { "第 ${index + 2} 行人员 Id 重复" }
+            require(ids.add(fields[0]) || allowDuplicateIds) { "第 ${index + 2} 行人员 Id 重复" }
+            val occurrence = occurrences.getOrDefault(fields[0], 0)
+            occurrences[fields[0]] = occurrence + 1
             val avatar = header.indexOf("AvatarUrl").takeIf { it >= 0 }?.let { row[it] }.orEmpty()
-            Personnel(fields[0], fields[1], fields[2], fields[3], fields[4], fields[5], com.zuozishi.callhelper.domain.AvatarAddress.normalize(avatar))
+            Personnel(fields[0], fields[1], fields[2], fields[3], fields[4], fields[5], com.zuozishi.callhelper.domain.AvatarAddress.normalize(avatar), "${fields[0].length}:${fields[0]}:$occurrence")
         }
         require(people.isNotEmpty()) { "CSV 没有人员记录" }
         return people

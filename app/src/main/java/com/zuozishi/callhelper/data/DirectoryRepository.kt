@@ -9,7 +9,7 @@ import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.withContext
 import java.io.InputStream
 
-/** The remote wire format is deliberately injected until the backend encryption contract exists. */
+/** Download and authenticated decryption complete before an atomic library replacement. */
 fun interface EncryptedCsvTransport { suspend fun download(): ByteArray }
 fun interface CsvPayloadDecryptor { fun decrypt(payload: ByteArray): ByteArray }
 
@@ -18,7 +18,7 @@ class DirectoryRepository(private val store: EncryptedDirectoryStore) {
     private val mutable = MutableStateFlow(DirectorySnapshot(emptyList()))
     val snapshot = mutable.asStateFlow()
     suspend fun load(): Unit = withContext(Dispatchers.IO) {
-        mutex.withLock { if (store.exists()) mutable.value = DirectorySnapshot(PersonnelCsv.parse(store.read())) }
+        mutex.withLock { if (store.exists()) mutable.value = DirectorySnapshot(PersonnelCsv.parse(store.read(), allowDuplicateIds = true)) }
     }
     suspend fun importCsv(input: InputStream): Int = withContext(Dispatchers.IO) {
         val bytes = input.use {
@@ -36,8 +36,8 @@ class DirectoryRepository(private val store: EncryptedDirectoryStore) {
         }
         importBytes(bytes)
     }
-    private suspend fun importBytes(bytes: ByteArray): Int = mutex.withLock {
-        val next = DirectorySnapshot(PersonnelCsv.parse(bytes))
+    private suspend fun importBytes(bytes: ByteArray, allowDuplicateIds: Boolean = false): Int = mutex.withLock {
+        val next = DirectorySnapshot(PersonnelCsv.parse(bytes, allowDuplicateIds))
         store.write(bytes) // AtomicFile and authenticated encryption preserve last good version on failure.
         mutable.value = next
         next.people.size
@@ -45,6 +45,6 @@ class DirectoryRepository(private val store: EncryptedDirectoryStore) {
     suspend fun sync(transport: EncryptedCsvTransport, decryptor: CsvPayloadDecryptor): Int = withContext(Dispatchers.IO) {
         val encrypted = transport.download()
         require(encrypted.size <= PersonnelCsv.MAX_BYTES + 1024) { "下载文件过大" }
-        importBytes(decryptor.decrypt(encrypted))
+        importBytes(decryptor.decrypt(encrypted), allowDuplicateIds = true)
     }
 }

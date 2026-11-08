@@ -4,6 +4,7 @@ data class Personnel(
     val id: String, val phone: String, val name: String, val post: String,
     val topOrgName: String, val fullOrgName: String,
     val avatarUrl: String = "",
+    val rowKey: String = id,
 )
 
 object AvatarAddress {
@@ -28,6 +29,7 @@ object PhoneKey {
 }
 
 class DirectorySnapshot(val people: List<Personnel>) {
+    val organizations = OrganizationIndex(people)
     private val byPhone = people.groupBy { PhoneKey.normalize(it.phone) }
     val unitCount = people.map { it.topOrgName }.filter { it.isNotBlank() }.distinct().size
     val duplicatePhoneGroups = byPhone.count { it.key.isNotEmpty() && it.value.size > 1 }

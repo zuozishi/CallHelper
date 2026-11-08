@@ -14,10 +14,10 @@ import java.util.concurrent.TimeUnit
 @RunWith(AndroidJUnit4::class)
 class UiDeviceTest {
     @get:Rule val ui = createAndroidComposeRule<MainActivity>()
-    @Test fun realDatasetSearchAndLiquidTabs() {
+    @Test fun activeDirectorySearchAndLiquidTabs() {
         val app = ui.activity.application as CallHelperApplication
-        ui.waitUntil(30000) { app.directory.snapshot.value.people.size == 4300 }
-        ui.onNodeWithTag("person-count").assertTextEquals("4300")
+        ui.waitUntil(90000) { app.initialSync.isCompleted && app.directory.snapshot.value.people.isNotEmpty() }
+        ui.onNodeWithTag("person-count").assertTextEquals(app.directory.snapshot.value.people.size.toString())
         ui.onNodeWithTag("liquid-navigation").assertExists()
         ui.onNodeWithTag("nav-1").performClick()
         val first = app.directory.snapshot.value.people.first()
@@ -25,13 +25,15 @@ class UiDeviceTest {
         ui.waitUntil(5000) { ui.onAllNodesWithText("1 人").fetchSemanticsNodes().isNotEmpty() }
         ui.onNodeWithTag("result-count").assertTextEquals("1 人")
         ui.onNodeWithTag("nav-3").performClick()
-        ui.onNodeWithContentDescription("深色").performClick()
-        ui.onNodeWithContentDescription("浅色").performClick()
+        ui.onNodeWithTag("theme-dropdown").performClick()
+        ui.onNodeWithText("深色").performClick()
+        ui.onNodeWithTag("theme-dropdown").performClick()
+        ui.onNodeWithText("浅色").performClick()
         ui.onNodeWithTag("nav-0").performClick()
     }
     @Test fun realWindowOverlayAndDismiss() {
         val app = ui.activity.application as CallHelperApplication
-        ui.waitUntil(30000) { app.directory.snapshot.value.people.size == 4300 }
+        ui.waitUntil(90000) { app.initialSync.isCompleted && app.directory.snapshot.value.people.isNotEmpty() }
         val inst = InstrumentationRegistry.getInstrumentation()
         inst.uiAutomation.executeShellCommand("appops set ${ui.activity.packageName} SYSTEM_ALERT_WINDOW allow").use { android.os.ParcelFileDescriptor.AutoCloseInputStream(it).readBytes() }
         var shown = false

@@ -15,4 +15,14 @@ app/src/debug/assets/private/
 app/src/androidTest/assets/private/
 .kotlin/
 artifacts/private/
+/artifacts/
+secrets/
 *.csv.enc
+*.apk
+*.aab
+*.apks
+*.idsig
+*.db
+*.sqlite
+*.sqlite3
+*.csv

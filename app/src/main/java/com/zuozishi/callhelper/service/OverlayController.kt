@@ -11,10 +11,12 @@ import android.graphics.PixelFormat
 import android.graphics.Typeface
 import android.graphics.drawable.GradientDrawable
 import android.os.Handler
+import android.os.Build
 import android.os.Looper
 import android.provider.Settings
 import android.view.*
 import android.widget.*
+import com.zuozishi.callhelper.R
 import com.zuozishi.callhelper.domain.Personnel
 import coil3.load
 import coil3.request.Disposable
@@ -55,6 +57,11 @@ class OverlayController(private val context: Context) {
         check(Looper.myLooper() == Looper.getMainLooper())
         if (!Settings.canDrawOverlays(context) || !prefs.getBoolean("enabled", true)) return false
         dismiss()
+        if (isCall && matches.isEmpty() && prefs.getBoolean("hideUnmatched", true)) return false
+        val bounds = if (Build.VERSION.SDK_INT >= 30) wm.currentWindowMetrics.bounds else null
+        val screenWidth = bounds?.width() ?: context.resources.displayMetrics.widthPixels
+        val screenHeight = bounds?.height() ?: context.resources.displayMetrics.heightPixels
+        val windowWidth = (screenWidth - dp(32)).coerceAtLeast(1)
         val systemDark = context.resources.configuration.uiMode and Configuration.UI_MODE_NIGHT_MASK == Configuration.UI_MODE_NIGHT_YES
         val dark = when (prefs.getInt("theme", 0)) { 1 -> false; 2 -> true; else -> systemDark }
         val ink = if (dark) Color.rgb(245, 247, 250) else Color.rgb(25, 30, 38)
@@ -69,9 +76,15 @@ class OverlayController(private val context: Context) {
         drag.addView(View(context).apply { background = GradientDrawable().apply { setColor(muted); cornerRadius = dp(2).toFloat() } }, FrameLayout.LayoutParams(dp(30), dp(3), Gravity.CENTER))
         root.addView(drag, LinearLayout.LayoutParams(-1, dp(24)))
         val heading = LinearLayout(context).apply { gravity = Gravity.CENTER_VERTICAL }
-        heading.addView(TextView(context).apply { text = "◇"; setTextColor(accent); textSize = 20f; contentDescription = "来电知人" }, LinearLayout.LayoutParams(0, dp(40), 1f))
+        heading.addView(FrameLayout(context).apply {
+            addView(ImageView(context).apply {
+                setImageResource(R.drawable.ic_shield)
+                imageTintList = android.content.res.ColorStateList.valueOf(accent)
+                contentDescription = context.getString(R.string.app_name)
+            }, FrameLayout.LayoutParams(dp(24), dp(24), Gravity.START or Gravity.CENTER_VERTICAL))
+        }, LinearLayout.LayoutParams(0, dp(48), 1f))
         val close = ImageButton(context).apply {
-            setImageResource(android.R.drawable.ic_menu_close_clear_cancel); imageTintList = android.content.res.ColorStateList.valueOf(muted)
+            setImageResource(R.drawable.ic_close); setPadding(dp(12), dp(12), dp(12), dp(12)); imageTintList = android.content.res.ColorStateList.valueOf(muted)
             setBackgroundColor(Color.TRANSPARENT); contentDescription = "关闭悬浮窗"; setOnClickListener { dismiss() }
         }
         heading.addView(close, LinearLayout.LayoutParams(dp(48), dp(48)))
@@ -110,24 +123,23 @@ class OverlayController(private val context: Context) {
                 if (prefs.getBoolean("department", true) && person.fullOrgName != person.topOrgName) text(person.fullOrgName, 12f, muted)
             }
         }
-        val maxBody = (context.resources.displayMetrics.heightPixels * .42f).toInt()
+        val maxBody = minOf((screenHeight * .42f).toInt(), (screenHeight - dp(180)).coerceAtLeast(1))
         val scroll = ScrollView(context).apply { addView(body); isFillViewport = false }
-        body.measure(View.MeasureSpec.makeMeasureSpec(context.resources.displayMetrics.widthPixels - dp(76), View.MeasureSpec.AT_MOST), View.MeasureSpec.makeMeasureSpec(0, View.MeasureSpec.UNSPECIFIED))
+        body.measure(View.MeasureSpec.makeMeasureSpec((windowWidth - dp(40)).coerceAtLeast(1), View.MeasureSpec.AT_MOST), View.MeasureSpec.makeMeasureSpec(0, View.MeasureSpec.UNSPECIFIED))
         root.addView(scroll, LinearLayout.LayoutParams(-1, minOf(body.measuredHeight, maxBody)))
-        val screenHeight = context.resources.displayMetrics.heightPixels
-        val params = WindowManager.LayoutParams(context.resources.displayMetrics.widthPixels - dp(32), -2,
+        val params = WindowManager.LayoutParams(windowWidth, -2,
             WindowManager.LayoutParams.TYPE_APPLICATION_OVERLAY,
             WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE or WindowManager.LayoutParams.FLAG_NOT_TOUCH_MODAL,
             PixelFormat.TRANSLUCENT).apply {
             gravity = Gravity.TOP or Gravity.START; x = dp(16)
-            y = (prefs.getFloat("overlayY", .30f) * screenHeight).toInt().coerceIn(dp(48), screenHeight - maxBody - dp(150))
+            y = (prefs.getFloat("overlayY", .30f) * screenHeight).toInt().coerceIn(0, (screenHeight - maxBody - dp(150)).coerceAtLeast(0))
         }
         var startY = 0f; var originY = 0
         drag.setOnTouchListener { _, event ->
             when (event.actionMasked) {
                 MotionEvent.ACTION_DOWN -> { startY = event.rawY; originY = params.y; true }
                 MotionEvent.ACTION_MOVE -> {
-                    params.y = (originY + event.rawY - startY).toInt().coerceIn(dp(32), (screenHeight - root.height - dp(24)).coerceAtLeast(dp(32)))
+                    params.y = (originY + event.rawY - startY).toInt().coerceIn(0, (screenHeight - root.height - dp(24)).coerceAtLeast(0))
                     runCatching { wm.updateViewLayout(root, params) }; true
                 }
                 MotionEvent.ACTION_UP -> { if (kotlin.math.abs(event.rawY - startY) < dp(8)) drag.performClick(); prefs.edit().putFloat("overlayY", params.y.toFloat() / screenHeight).apply(); true }

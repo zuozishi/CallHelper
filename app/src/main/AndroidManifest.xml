@@ -1,12 +1,28 @@
 <?xml version="1.0" encoding="utf-8"?>
-<manifest xmlns:android="http://schemas.android.com/apk/res/android">
+<manifest xmlns:android="http://schemas.android.com/apk/res/android" xmlns:tools="http://schemas.android.com/tools">
     <uses-permission android:name="android.permission.INTERNET" />
+    <uses-permission android:name="android.permission.CAMERA" />
+    <uses-feature android:name="android.hardware.camera" android:required="false" />
     <uses-permission android:name="android.permission.SYSTEM_ALERT_WINDOW" />
     <uses-permission android:name="android.permission.READ_PHONE_STATE" />
     <uses-permission android:name="android.permission.READ_CONTACTS" />
-    <application android:name=".CallHelperApplication" android:label="来电知人"
+    <queries>
+        <package android:name="com.xiaomi.subscreencenter" />
+        <package android:name="org.matrix.vector.manager" />
+        <package android:name="org.lsposed.manager" />
+    </queries>
+    <application android:name=".CallHelperApplication" android:label="@string/app_name"
         android:allowBackup="false" android:fullBackupContent="false" android:dataExtractionRules="@xml/data_extraction_rules"
         android:supportsRtl="true" android:usesCleartextTraffic="false" android:theme="@style/AppTheme" android:icon="@drawable/ic_app">
+        <meta-data android:name="xposedmodule" android:value="true" />
+        <meta-data android:name="xposeddescription" android:value="在小米原生背屏服务助手中显示联系人卡片" />
+        <meta-data android:name="xposedminversion" android:value="82" />
+        <meta-data android:name="xposedscope" android:resource="@array/xposed_scope" />
+        <provider android:name=".rear.NativeRearProvider" android:authorities="${applicationId}.rear"
+            android:exported="true" />
+        <receiver android:name=".rear.RearCardActions" android:exported="false" />
+        <activity android:name="com.journeyapps.barcodescanner.CaptureActivity"
+            android:screenOrientation="portrait" tools:replace="android:screenOrientation" />
         <activity android:name=".MainActivity" android:exported="true">
             <intent-filter><action android:name="android.intent.action.MAIN" /><category android:name="android.intent.category.LAUNCHER" /></intent-filter>
         </activity>

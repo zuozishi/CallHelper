@@ -14,13 +14,16 @@ import java.io.File
 class DirectoryDeviceTest {
     private val instrumentation = InstrumentationRegistry.getInstrumentation()
     private val context = instrumentation.targetContext
-    private fun fixture() = instrumentation.context.assets.open("private/members.csv")
-    @Test fun fullRealDatasetLookupAndReload() = runBlocking {
+    private fun fixture() = ("Id,Phone,Name,Post,TopOrgName,FullOrgName,AvatarUrl\n" +
+        "a,13800000001,测试甲,开发,单位甲,集团·单位甲·研发,https://example.invalid/a.png\n" +
+        "b,13800000002,测试乙,经理,单位甲,集团·单位甲,https://example.invalid/b.png\n" +
+        "c,13800000003,测试丙,开发,单位乙,集团·单位乙,https://example.invalid/c.png\n").byteInputStream()
+    @Test fun syntheticLookupAndReload() = runBlocking {
         val store = EncryptedDirectoryStore(context, "test-import")
         val repo = DirectoryRepository(store)
-        assertEquals(4300, repo.importCsv(fixture()))
+        assertEquals(3, repo.importCsv(fixture()))
         val snapshot = repo.snapshot.value
-        assertEquals(417, snapshot.unitCount); assertEquals(0, snapshot.duplicatePhoneGroups)
+        assertEquals(2, snapshot.unitCount); assertEquals(0, snapshot.duplicatePhoneGroups)
         assertTrue(snapshot.people.all { it.post.isNotEmpty() && it.fullOrgName.isNotEmpty() })
         assertTrue(snapshot.people.all { it.avatarUrl.startsWith("https://") })
         snapshot.people.forEach { p -> assertTrue(snapshot.lookup("+86" + p.phone).single().id == p.id) }
@@ -50,8 +53,8 @@ class DirectoryDeviceTest {
     @Test fun remoteAdapterUsesSameCsvModel() = runBlocking {
         val bytes = fixture().use { it.readBytes() }
         val repo = DirectoryRepository(EncryptedDirectoryStore(context, "test-remote"))
-        assertEquals(4300, repo.sync(EncryptedCsvTransport { bytes.reversedArray() }, CsvPayloadDecryptor { it.reversedArray() }))
-        assertEquals(4300, repo.snapshot.value.people.size)
+        assertEquals(3, repo.sync(EncryptedCsvTransport { bytes.reversedArray() }, CsvPayloadDecryptor { it.reversedArray() }))
+        assertEquals(3, repo.snapshot.value.people.size)
     }
     @Test fun interruptedAtomicWriteRecoversBackup() = runBlocking {
         val store = EncryptedDirectoryStore(context, "test-backup")
@@ -61,35 +64,6 @@ class DirectoryDeviceTest {
         assertTrue(file.renameTo(backup))
         assertTrue(store.exists())
         val fresh = DirectoryRepository(store); fresh.load()
-        assertEquals(4300, fresh.snapshot.value.people.size)
-    }
-    @Test fun realAvatarEndpointDecodes() = runBlocking {
-        val people = fixture().use { PersonnelCsv.parse(it.readBytes()) }
-        val common = people.groupingBy { it.avatarUrl }.eachCount().maxBy { it.value }.key
-        val address = people.first { it.avatarUrl != common }.avatarUrl
-        val result = coil3.SingletonImageLoader.get(context).execute(
-            coil3.request.ImageRequest.Builder(context).data(address).size(96).build())
-        assertTrue("Avatar request did not decode", result is coil3.request.SuccessResult)
-        if (result is coil3.request.SuccessResult) assertTrue(result.image.width > 0 && result.image.height > 0)
-    }
-    @Test fun debugFixtureUpgradeAddsAvatarsButPreservesManualImport() = runBlocking {
-        val source = fixture().use { PersonnelCsv.parse(it.readBytes()) }
-        val header = "Id,Phone,Name,Post,TopOrgName,FullOrgName\n"
-        val oldCsv = header + source.joinToString("\n") { p ->
-            listOf(p.id, p.phone, p.name, p.post, p.topOrgName, p.fullOrgName)
-                .joinToString(",") { "\"" + it.replace("\"", "\"\"") + "\"" }
-        }
-        val preferences = context.getSharedPreferences("fixture-upgrade-test", android.content.Context.MODE_PRIVATE)
-        preferences.edit().clear().commit()
-        val repo = DirectoryRepository(EncryptedDirectoryStore(context, "test-fixture-upgrade"))
-        repo.importCsv(oldCsv.byteInputStream())
-        assertTrue(repo.snapshot.value.people.all { it.avatarUrl.isEmpty() })
-        assertTrue(BundledData.refresh(context, repo, preferences))
-        assertTrue(repo.snapshot.value.people.all { it.avatarUrl.isNotEmpty() })
-        assertFalse(BundledData.refresh(context, repo, preferences))
-        repo.importCsv(oldCsv.byteInputStream())
-        preferences.edit().putString("directorySource", "manual").remove("fixtureSha256").commit()
-        assertFalse(BundledData.refresh(context, repo, preferences))
-        assertTrue(repo.snapshot.value.people.all { it.avatarUrl.isEmpty() })
+        assertEquals(3, fresh.snapshot.value.people.size)
     }
 }
