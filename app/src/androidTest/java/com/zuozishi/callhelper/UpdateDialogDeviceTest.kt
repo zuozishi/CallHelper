@@ -23,8 +23,9 @@ class UpdateDialogDeviceTest {
         val context = inst.targetContext
         val scope = CoroutineScope(SupervisorJob() + Dispatchers.Main.immediate)
         val updates = UpdateController(context, scope)
-        val release = AppRelease("v0.2.1", "2026-11-08", "新增关于页与应用版本检查\n支持应用内下载并调起安装\n优化启动检查与下载体验",
-            listOf(ReleaseAsset("callhelper-0.2.1-release.apk", "$REPOSITORY/releases/download/v0.2.1/callhelper-0.2.1-release.apk", 19_503_514, null)))
+        val nextVersion = BuildConfig.VERSION_NAME.substringBeforeLast('.') + "." + (BuildConfig.VERSION_NAME.substringAfterLast('.').toInt() + 1)
+        val release = AppRelease("v$nextVersion", "2026-11-08", "新增关于页与应用版本检查\n支持应用内下载并调起安装\n优化启动检查与下载体验",
+            listOf(ReleaseAsset("callhelper-$nextVersion-release.apk", "$REPOSITORY/releases/download/v$nextVersion/callhelper-$nextVersion-release.apk", 19_503_514, null)))
         val display = mutableStateOf(UpdateState(release = release, sheet = UpdateSheet.Release))
         try {
             ui.setContent { MiuixTheme { UpdateDialog(display.value, updates, {}, {}) } }

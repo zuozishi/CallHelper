@@ -69,7 +69,8 @@ class ApkUpdateDeviceTest {
         val folder = File(context.cacheDir, "update-test-${UUID.randomUUID()}").apply { mkdirs() }
         val wrapped = object : ContextWrapper(context) { override fun getFilesDir(): File = folder }
         val bytes = fixture("next").readBytes()
-        val json = """{"tag_name":"v0.2.1","assets":[{"name":"callhelper-0.2.1-release.apk","size":${bytes.size},"browser_download_url":"$REPOSITORY/releases/download/v0.2.1/callhelper-0.2.1-release.apk"}]}"""
+        val nextVersion = BuildConfig.VERSION_NAME.substringBeforeLast('.') + "." + (BuildConfig.VERSION_NAME.substringAfterLast('.').toInt() + 1)
+        val json = """{"tag_name":"v$nextVersion","assets":[{"name":"callhelper-$nextVersion-release.apk","size":${bytes.size},"browser_download_url":"$REPOSITORY/releases/download/v$nextVersion/callhelper-$nextVersion-release.apk"}]}"""
         val client = ReleaseClient { url -> object : HttpURLConnection(URL(url)) {
             override fun connect() {}
             override fun disconnect() {}

@@ -33,14 +33,20 @@ import top.yukonga.miuix.kmp.theme.MiuixTheme
 import java.util.Locale
 
 private val Blue = Color(0xFF3482FF)
-private val offlineRelease = AppRelease("v0.2.0", "2026-11-08", """
+private val offlineReleases = listOf(AppRelease("v0.3.0", "2026-11-08", """
+新增关于页，展示 GitHub 仓库、作者与更新记录。
+启动静默检查应用更新，网络失败不提示；支持手动检查。
+Release 信息与 APK 优先通过镜像访问，失败自动回退 GitHub。
+下载完成后校验完整性、版本、签名和兼容性，自动打开系统安装器。
+支持安装授权返回后继续；后台完成下载后返回应用继续安装。
+""".trimIndent(), emptyList()), AppRelease("v0.2.0", "2026-11-08", """
 支持 HTTPS 加密全量人员库同步，失败保留离线库。
 支持同步配置手动录入、扫码、二维码图片导入与导出。
 支持组织逐级浏览、全库搜索和人员详情拨号。
 支持小米原生背屏联系人卡片，需 LSPosed / Vector 和适配版本。
 更新界面图标，增加人员库超过 7 天未更新的提醒。
 移除安装包内的人员数据、同步地址和解密密钥。
-""".trimIndent(), emptyList())
+""".trimIndent(), emptyList()))
 
 internal fun LazyListScope.aboutItems(
     updates: UpdateController, state: UpdateState, history: Boolean,
@@ -54,7 +60,8 @@ internal fun LazyListScope.aboutItems(
                 UpdateButton("重试", primary = false, onClick = updates::loadHistory)
             }
         }
-        val releases = (state.history + offlineRelease).distinctBy { stableVersion(it.tag) }
+        val releases = (offlineReleases.filter { it.tag == "v${BuildConfig.VERSION_NAME}" } + state.history + offlineReleases)
+            .distinctBy { stableVersion(it.tag) }
         items(releases, key = { "release-${it.tag}" }) { release ->
             AboutCard {
                 Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
