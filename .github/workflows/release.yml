@@ -48,6 +48,7 @@ jobs:
           validate_release_tag(os.environ['RELEASE_TAG'], versions[0])
           PY
           python3 -m unittest discover -s scripts -p 'test_*.py'
+          python3 scripts/release_notes.py --tag "$RELEASE_TAG" --output artifacts/release-notes.md
 
       - name: 安装 JDK 21
         uses: actions/setup-java@v6
@@ -122,7 +123,8 @@ jobs:
             gh release upload "$RELEASE_TAG" "${assets[@]}" --clobber
           else
             gh release create "$RELEASE_TAG" "${assets[@]}" \
-              --verify-tag --title "$RELEASE_TAG" --generate-notes --draft \
+              --verify-tag --title "$RELEASE_TAG" --notes-file artifacts/release-notes.md --draft \
               --prerelease="$prerelease"
           fi
-          gh release edit "$RELEASE_TAG" --draft=false --prerelease="$prerelease"
+          gh release edit "$RELEASE_TAG" --notes-file artifacts/release-notes.md \
+            --draft=false --prerelease="$prerelease"

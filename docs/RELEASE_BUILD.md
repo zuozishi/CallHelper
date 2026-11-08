@@ -102,7 +102,7 @@ GitHub CLI 参数见[官方 secret set 文档](https://cli.github.com/manual/gh_
 
 ### 发布流程
 
-1. 提升 `versionCode`，设置 `versionName`；提交代码、签名脚本及工作流，确认 `.env` 没有被跟踪。
+1. 提升 `versionCode`，设置 `versionName`，在 `CHANGELOG.md` 添加对应版本更新内容；提交代码、签名脚本及工作流，确认 `.env` 没有被跟踪。
 2. 将代码和版本 tag 推送到目标仓库，例如版本为 `0.2.0` 时：
 
 ```powershell
@@ -115,7 +115,9 @@ git push origin v0.2.0
 
 流水线使用 Ubuntu 24.04、JDK 21、Android SDK 37 和 Build Tools 36.1.0，先校验 tag、运行 Python 工具测试，再从 Secrets 临时恢复 `.env`，调用同一本地脚本完成 JVM 测试、Lint、构建、对齐、签名及私有值检查。`.env` 和临时签名目录在结束时清理，不上传为附件或缓存。
 
-检查通过后上传以下三项到该 tag 的 Release：签名 APK、`.apk.sha256`、`.apk.json`。新 Release 先创建为草稿，附件上传成功后公开并自动生成发布说明；任务重跑时上传并替换同名附件，保留已有发布说明。若仓库启用不可变 Release，已公开的附件不能替换，需要发布新版本。
+检查通过后上传以下三项到该 tag 的 Release：签名 APK、`.apk.sha256`、`.apk.json`。发布说明从 `CHANGELOG.md` 中提取对应版本段落，包含功能更新与升级说明；找不到版本、版本重复或内容为空时会在构建前失败。标题使用 `## 0.2.0 · 2026-11-08` 或 `## 0.2.0`，段落持续到下一个二级标题，可包含三级标题。
+
+新 Release 先创建为草稿，附件上传成功后公开；任务重跑时上传并替换同名附件，并以对应版本的更新记录同步发布说明。若仓库启用不可变 Release，已公开的附件不能替换，需要发布新版本。
 
 脚本在构建前及读取 APK 元数据后均验证 tag / `versionName`，防止 tag 名称与 APK 版本不符。它不自动递增版本或替你创建 tag；上面的示例值应替换为实际版本。首次线上运行仍需确认 SDK 下载、仓库权限、Secrets 和 Release 上传均正常。
 
