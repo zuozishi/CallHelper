@@ -2,7 +2,7 @@
 
 Android 来电人员识别助手。在系统来电界面上叠加人员名片，显示头像、姓名、岗位、单位与组织路径，并提供离线通讯录查询。
 
-支持 Android 10 及以上，当前开发版本 **0.1.9**。普通来电识别无需 Root；小米背屏扩展需要 LSPosed / Vector 和受支持的背屏应用。
+支持 Android 10 及以上，当前版本 **0.2.0**。普通来电识别无需 Root；小米背屏扩展需要 LSPosed / Vector 和受支持的背屏应用。
 
 ## 功能
 
@@ -52,7 +52,19 @@ python -m unittest discover -s scripts -p test_private_assets.py
 
 macOS / Linux 使用 `./gradlew` 替换 `./gradlew.bat`。Python 用于检查脚本，不是 Android 编译依赖。
 
-输出目录为 `app/build/outputs/apk/debug/` 和 `app/build/outputs/apk/release/`。当前未配置 Release 签名，产物为 unsigned APK；分发前需使用自行保管的签名密钥签名，后续升级保持相同签名。Debug 包仅供开发测试。
+Gradle 原始输出目录为 `app/build/outputs/apk/debug/` 和 `app/build/outputs/apk/release/`；直接执行 Gradle 的 Release 构建生成 unsigned APK。Debug 包仅供开发测试。
+
+正式版使用本地 `.env` 中保存的发布身份，通过以下脚本完成检查、对齐、签名和验证，产物保存到 `artifacts/releases/`：
+
+```powershell
+# 仅首次生成；已有 .env 时拒绝覆盖
+python scripts/build_release.py --init-signing
+python scripts/build_release.py
+```
+
+完整说明见[正式版签名与打包](docs/RELEASE_BUILD.md)。`.env` 包含完整签名库与密码，不提交 Git，需安全备份；后续升级保持同一签名。
+
+GitHub Actions 支持推送 `v<versionName>` tag 后自动检查、签名并发布 APK、SHA-256 与构建信息到 Release；带预发布后缀的版本自动标记为 Prerelease。首次使用需将 `.env` 中四项签名配置添加到仓库 Secrets，见[流水线配置](docs/RELEASE_BUILD.md#github-actions推送-tag-自动发布)。
 
 构建不需要同步 URL、导出密钥或真实人员文件。不要将这些文件放入项目目录：构建会拒绝私有输入，并检查 APK 资源白名单。`app/libs/xposed-api82.jar` 是背屏扩展的编译依赖，需随源码一起保留，不会打包进 APK。
 
@@ -86,6 +98,7 @@ Git 提交消息使用简体中文和约定式提交格式，例如 `docs: 完�
 | 文档 | 内容 |
 | --- | --- |
 | [后端服务搭建](docs/BACKEND_SETUP.md) | 接口协议、参考服务、部署与排障 |
+| [正式版打包](docs/RELEASE_BUILD.md) | 本地签名身份、打包脚本与产物校验 |
 | [同步配置](docs/SYNC_CONFIGURATION_20261108.md) | 手动配置、二维码与密钥保存 |
 | [当前架构](docs/architecture/ARCHITECTURE.md) | 同步、存储、来电与背屏实现 |
 | [组织层级](docs/DIRECTORY_HIERARCHY_20261108.md) | 组织导航与索引 |

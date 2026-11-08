@@ -44,7 +44,10 @@ def main():
     if args.reference_stdin:
         import sys
         references = [value for value in json.load(sys.stdin) if value]
-    for relative in ['.env', 'secrets', 'data', 'artifacts/private']:
+    if (ROOT / '.env').exists():
+        from release_signing import load_config
+        references += load_config(ROOT / '.env').private_references()
+    for relative in ['secrets', 'data', 'artifacts/private']:
         path = ROOT / relative
         assert not path.is_file() and (not path.exists() or not any(path.rglob('*'))), 'Local private input remains: ' + relative
     summary = {}

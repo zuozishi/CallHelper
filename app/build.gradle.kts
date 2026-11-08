@@ -4,7 +4,8 @@ plugins { id("com.android.application"); id("org.jetbrains.kotlin.plugin.compose
 // .gitignore does not prevent private resources from entering an APK.
 val verifyNoPrivateInputs by tasks.registering {
     doLast {
-        listOf(".env", "secrets", "data", "artifacts/private").forEach { relative ->
+        // Root .env is reserved for local release signing, never a source asset.
+        listOf("secrets", "data", "artifacts/private").forEach { relative ->
             val input = rootProject.file(relative)
             require(!input.isFile && (!input.exists() || input.walkTopDown().none { it.isFile })) {
                 "项目包含私有输入，请先移除：$relative"
@@ -58,8 +59,8 @@ android {
         applicationId = "com.zuozishi.callhelper"
         minSdk = 29
         targetSdk = 36
-        versionCode = 10
-        versionName = "0.1.9"
+        versionCode = 11
+        versionName = "0.2.0"
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     }
     buildFeatures { compose = true; buildConfig = true }
