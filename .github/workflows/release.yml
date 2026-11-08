@@ -58,7 +58,7 @@ jobs:
       - name: 安装 Android SDK
         uses: android-actions/setup-android@v4
         with:
-          packages: 'platform-tools platforms;android-37 build-tools;36.1.0'
+          packages: 'platform-tools platforms;android-37.0 build-tools;36.1.0'
           log-accepted-android-sdk-licenses: false
 
       - name: 从 GitHub Secrets 恢复签名配置
